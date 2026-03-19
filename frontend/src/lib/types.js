@@ -1,0 +1,64 @@
+/**
+ * @typedef {Object} Fund
+ * @property {string} ticker
+ * @property {string} name
+ * @property {string} category
+ * @property {number} beta
+ * @property {number} lastYearReturn
+ * @property {number} capmRate
+ * @property {number} expenseRatio
+ */
+
+/**
+ * @typedef {Object} ScenarioResult
+ * @property {'conservative' | 'base' | 'optimistic'} scenario
+ * @property {number} rate
+ * @property {number} futureValue
+ */
+
+/**
+ * @typedef {Object} CalculationResult
+ * @property {Fund} fund
+ * @property {number} principal
+ * @property {number} years
+ * @property {number} projectedRate
+ * @property {number} futureValue
+ * @property {number} riskFreeRate
+ * @property {number} beta
+ * @property {number} expectedReturn
+ * @property {ScenarioResult[]} scenarios
+ * @property {number[]} yearlyValues
+ */
+
+/**
+ * @typedef {Object} HistoryItem
+ * @property {string} id
+ * @property {string} fundName
+ * @property {string} ticker
+ * @property {number} principal
+ * @property {number} years
+ * @property {number} conservative
+ * @property {number} base
+ * @property {number} optimistic
+ * @property {string} date
+ * @property {'gain' | 'loss'} status
+ */
+
+/**
+ * @typedef {Object} PortfolioHolding
+ * @property {string} ticker
+ * @property {string} name
+ * @property {number} principal
+ * @property {number} years
+ * @property {number} projRate
+ * @property {number} futureValue
+ * @property {string} color
+ */
+
+/**
+ * @typedef {Object} ExplainabilityItem
+ * @property {string} question
+ * @property {string} answer
+ */
+
+export {};
