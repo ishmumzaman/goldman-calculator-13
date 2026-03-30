@@ -19,12 +19,19 @@ export default function InvestmentProjection({ result, onBack }) {
   useEffect(() => {
     if (!result?.fund?.ticker) return;
     fetchExplanation({ ticker: result.fund.ticker }).then(setExplanation);
+
+    if (Array.isArray(result.historicalSeries) && result.historicalSeries.length > 0) {
+      setHistData(result.historicalSeries);
+      setHistLoading(false);
+      return;
+    }
+
     setHistLoading(true);
     fetchFundHistory(result.fund.ticker).then((d) => {
       setHistData(d);
       setHistLoading(false);
     });
-  }, [result?.fund?.ticker]);
+  }, [result]);
 
   if (!result) {
     return (
@@ -48,7 +55,7 @@ export default function InvestmentProjection({ result, onBack }) {
   const opt = scenarios.find((s) => s.scenario === "optimistic");
 
   return (
-    <div className="flex flex-col gap-7 flex-1 overflow-auto px-12 py-8">
+    <div className="flex flex-col gap-7 flex-1 min-h-0 min-w-0 overflow-y-auto px-12 py-8">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex flex-col gap-2">
@@ -153,7 +160,13 @@ export default function InvestmentProjection({ result, onBack }) {
       </div>
 
       {/* Historical chart */}
-      <HistoricalChart data={histData} loading={histLoading} />
+      <HistoricalChart
+        data={histData}
+        loading={histLoading}
+        valueFormat="index"
+        title="Historical performance (simulated)"
+        subtitle="Normalized index (base 100). Early window follows CAPM-linked drift for this fund; the last 12 months compound to the stated trailing return (Rm) used above — not your entered principal."
+      />
 
       {/* Disclaimer */}
       <DisclaimerBanner text="These projections are estimates based on the CAPM model and historical data. This is not financial advice. Actual returns may vary significantly." />

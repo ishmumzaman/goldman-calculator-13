@@ -25,7 +25,7 @@ export default function SavedHistory({ onViewResult }) {
   }, []);
 
   return (
-    <div className="flex flex-col gap-8 flex-1 overflow-auto px-12 py-8">
+    <div className="flex flex-col gap-8 flex-1 min-h-0 min-w-0 overflow-y-auto px-12 py-8">
       <PageHeader
         title="Saved History"
         subtitle="Review and revisit your previous mutual fund calculations stored locally."

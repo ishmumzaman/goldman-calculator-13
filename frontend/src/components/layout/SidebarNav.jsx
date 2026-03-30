@@ -1,5 +1,5 @@
 import {
-  Calculator, BarChart3, Clock3, Briefcase, BookOpen, Settings, Info,
+  Calculator, BarChart3, Clock3, Briefcase, Info,
 } from "lucide-react";
 
 const NAV_ITEMS = [
@@ -7,8 +7,6 @@ const NAV_ITEMS = [
   { key: "compare", label: "Compare Funds", icon: BarChart3 },
   { key: "history", label: "Saved History", icon: Clock3 },
   { key: "portfolio", label: "Portfolio", icon: Briefcase },
-  { key: "learn", label: "Learn CAPM", icon: BookOpen },
-  { key: "settings", label: "Settings", icon: Settings },
 ];
 
 export default function SidebarNav({ activeScreen, onNavigate }) {
@@ -16,14 +14,14 @@ export default function SidebarNav({ activeScreen, onNavigate }) {
     <aside className="flex flex-col justify-between w-[260px] min-w-[260px] h-full bg-[var(--bg-sidebar)] border-l-2 border-l-[var(--gs-gold)] px-6 py-5">
       {/* Top */}
       <div className="flex flex-col gap-8">
-        {/* Logo */}
-        <div className="flex flex-col gap-1">
-          <span className="font-dm-mono text-sm font-semibold tracking-[3px] text-[var(--gs-gold)]">
-            GOLDMAN SACHS
-          </span>
-          <span className="font-inter text-[11px] text-[var(--text-tertiary)]">
-            Emerging Leaders
-          </span>
+        {/* Logo — full content width, taller cap (no fixed intrinsic size) */}
+        <div className="flex flex-col w-full min-w-0 self-stretch">
+          <img
+            src="/branding/goldman-sachs-logo.png"
+            alt="Goldman Sachs"
+            className="block w-full h-auto max-h-40 object-contain object-left"
+            decoding="async"
+          />
         </div>
 
         {/* Nav items */}

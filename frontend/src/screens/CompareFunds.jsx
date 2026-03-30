@@ -53,7 +53,7 @@ export default function CompareFunds() {
   }));
 
   return (
-    <div className="flex flex-col gap-7 flex-1 overflow-auto px-12 py-8">
+    <div className="flex flex-col gap-7 flex-1 min-h-0 min-w-0 overflow-y-auto overflow-x-hidden px-12 py-8 pb-10">
       {/* Header */}
       <PageHeader title="Compare Funds" subtitle="Side-by-side CAPM projections for up to 3 mutual funds">
         <RiskFreeBadge />
@@ -142,11 +142,13 @@ export default function CompareFunds() {
 
       {/* Results */}
       {results && results.length >= 2 && (
-        <>
-          {/* Chart + Cards row */}
-          <div className="flex gap-5 min-h-[320px]">
-            <ComparisonBarChart funds={chartFunds} years={years} />
-            <div className="flex flex-col gap-4 w-[320px] shrink-0">
+        <div className="flex flex-col gap-8 w-full min-w-0 shrink-0">
+          {/* Chart + fund cards: stack on small screens, side-by-side on large */}
+          <div className="flex flex-col xl:flex-row xl:items-start gap-6 w-full min-w-0">
+            <div className="w-full min-w-0 xl:flex-1 xl:min-w-0">
+              <ComparisonBarChart funds={chartFunds} years={years} />
+            </div>
+            <div className="flex flex-col gap-4 w-full xl:w-[min(100%,320px)] xl:shrink-0">
               {results.map((r, i) => (
                 <FundSummaryCard
                   key={r.fund.ticker}
@@ -163,8 +165,9 @@ export default function CompareFunds() {
             </div>
           </div>
 
-          {/* Comparison table */}
-          <div className="flex flex-col rounded-xl border border-[var(--border-subtle)] overflow-hidden">
+          {/* Comparison table — full width below chart/cards, horizontal scroll on narrow viewports */}
+          <div className="w-full min-w-0 overflow-x-auto rounded-xl border border-[var(--border-subtle)]">
+            <div className="flex flex-col min-w-[520px]">
             <div className="flex items-center h-12 px-5 bg-[var(--bg-elevated)]">
               <span className="flex-1 font-inter text-[11px] font-semibold tracking-wide text-[var(--text-muted)]">METRIC</span>
               {results.map((r, i) => (
@@ -190,8 +193,9 @@ export default function CompareFunds() {
                 ))}
               </div>
             ))}
+            </div>
           </div>
-        </>
+        </div>
       )}
 
       {/* Empty state */}

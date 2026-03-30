@@ -17,6 +17,20 @@
  */
 
 /**
+ * @typedef {Object} HistoryPoint
+ * @property {number} month
+ * @property {number} value
+ */
+
+/**
+ * Series passed into `HistoricalChart` / `normalizeHistoricalLineData`.
+ * Mock data uses {@link HistoryPoint}[]; a real backend may return other row shapes
+ * or wrappers (`{ data, points, series, values, items, rows }`) — see `lib/historicalSeries.js`.
+ *
+ * @typedef {HistoryPoint[]|Record<string, unknown>} HistoricalSeriesInput
+ */
+
+/**
  * @typedef {Object} CalculationResult
  * @property {Fund} fund
  * @property {number} principal
@@ -28,6 +42,7 @@
  * @property {number} expectedReturn
  * @property {ScenarioResult[]} scenarios
  * @property {number[]} yearlyValues
+ * @property {HistoricalSeriesInput} [historicalSeries] history for charts (same run as forecast)
  */
 
 /**

@@ -9,7 +9,7 @@ const SavedHistory = lazy(() => import("./screens/SavedHistory.jsx"));
 const Portfolio = lazy(() => import("./screens/Portfolio.jsx"));
 
 const LoadingFallback = () => (
-  <div className="flex items-center justify-center flex-1">
+  <div className="flex items-center justify-center flex-1 min-h-0">
     <span className="font-inter text-sm text-[var(--text-muted)] animate-pulse">Loading…</span>
   </div>
 );
@@ -59,10 +59,6 @@ export default function App() {
         return <SavedHistory onViewResult={handleViewHistoryResult} />;
       case "portfolio":
         return <Portfolio />;
-      case "learn":
-        return <PlaceholderScreen title="Learn CAPM" subtitle="Interactive CAPM model explainer coming soon." />;
-      case "settings":
-        return <PlaceholderScreen title="Settings" subtitle="Preferences and configuration coming soon." />;
       default:
         return <Calculator onCalculate={handleCalculate} />;
     }
@@ -74,21 +70,11 @@ export default function App() {
         activeScreen={screen === "results" ? "calculator" : screen}
         onNavigate={handleNavigate}
       />
-      <main className="flex flex-col flex-1 min-w-0 h-full overflow-hidden">
+      <main className="flex flex-col flex-1 min-h-0 min-w-0 h-full overflow-hidden">
         <Suspense fallback={<LoadingFallback />}>
           {renderScreen()}
         </Suspense>
       </main>
-    </div>
-  );
-}
-
-/** Simple placeholder for optional / future screens */
-function PlaceholderScreen({ title, subtitle }) {
-  return (
-    <div className="flex flex-col items-center justify-center flex-1 gap-4">
-      <h2 className="font-instrument text-3xl text-[var(--text-primary)]">{title}</h2>
-      <p className="font-inter text-sm text-[var(--text-muted)]">{subtitle}</p>
     </div>
   );
 }

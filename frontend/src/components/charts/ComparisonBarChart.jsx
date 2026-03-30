@@ -21,7 +21,7 @@ export default function ComparisonBarChart({ funds = [], years = 5 }) {
   }));
 
   return (
-    <div className="flex flex-col gap-5 flex-1 p-6 rounded-xl bg-[var(--bg-card)] border border-[var(--border-subtle)]">
+    <div className="flex flex-col gap-5 w-full min-w-0 p-6 rounded-xl bg-[var(--bg-card)] border border-[var(--border-subtle)]">
       <div className="flex items-center justify-between">
         <span className="font-inter text-sm font-semibold text-[var(--text-primary)]">
           Projected Growth ({years} Year)
@@ -40,10 +40,10 @@ export default function ComparisonBarChart({ funds = [], years = 5 }) {
       </div>
 
       {/* TODO: Replace with <BarChart> from Recharts */}
-      <div className="flex items-end gap-4 flex-1 min-h-[220px]">
+      <div className="flex items-end gap-4 w-full h-[240px] shrink-0">
         {yearGroups.map((grp) => (
-          <div key={grp.year} className="flex flex-col items-center gap-1.5 flex-1 justify-end h-full">
-            <div className="flex items-end gap-1 w-full h-full">
+          <div key={grp.year} className="flex flex-col items-center gap-1.5 flex-1 justify-end min-h-0 h-full">
+            <div className="flex items-end gap-1 w-full flex-1 min-h-0">
               {grp.bars.map((bar) => (
                 <div
                   key={bar.ticker}
