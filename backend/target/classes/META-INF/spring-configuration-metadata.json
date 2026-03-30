@@ -1,0 +1,71 @@
+{
+  "groups": [
+    {
+      "name": "app",
+      "type": "com.group13.mutualfundcalculatorbackend.config.AppProperties",
+      "sourceType": "com.group13.mutualfundcalculatorbackend.config.AppProperties"
+    },
+    {
+      "name": "app.newton",
+      "type": "com.group13.mutualfundcalculatorbackend.config.AppProperties$NewtonProperties",
+      "sourceType": "com.group13.mutualfundcalculatorbackend.config.AppProperties",
+      "sourceMethod": "public com.group13.mutualfundcalculatorbackend.config.AppProperties.NewtonProperties getNewton() "
+    }
+  ],
+  "properties": [
+    {
+      "name": "app.allowed-origin",
+      "type": "java.lang.String",
+      "sourceType": "com.group13.mutualfundcalculatorbackend.config.AppProperties"
+    },
+    {
+      "name": "app.benchmark-index-ticker",
+      "type": "java.lang.String",
+      "sourceType": "com.group13.mutualfundcalculatorbackend.config.AppProperties"
+    },
+    {
+      "name": "app.funds",
+      "type": "java.util.List<com.group13.mutualfundcalculatorbackend.model.FundDefinition>",
+      "sourceType": "com.group13.mutualfundcalculatorbackend.config.AppProperties"
+    },
+    {
+      "name": "app.newton.base-url",
+      "type": "java.lang.String",
+      "sourceType": "com.group13.mutualfundcalculatorbackend.config.AppProperties$NewtonProperties"
+    },
+    {
+      "name": "app.newton.interval",
+      "type": "java.lang.String",
+      "sourceType": "com.group13.mutualfundcalculatorbackend.config.AppProperties$NewtonProperties"
+    },
+    {
+      "name": "app.newton.observations",
+      "type": "java.lang.Integer",
+      "sourceType": "com.group13.mutualfundcalculatorbackend.config.AppProperties$NewtonProperties"
+    },
+    {
+      "name": "app.newton.price-data-type",
+      "type": "java.lang.String",
+      "sourceType": "com.group13.mutualfundcalculatorbackend.config.AppProperties$NewtonProperties"
+    },
+    {
+      "name": "app.newton.price-interval",
+      "type": "java.lang.String",
+      "sourceType": "com.group13.mutualfundcalculatorbackend.config.AppProperties$NewtonProperties"
+    },
+    {
+      "name": "app.newton.price-observations",
+      "type": "java.lang.Integer",
+      "sourceType": "com.group13.mutualfundcalculatorbackend.config.AppProperties$NewtonProperties"
+    },
+    {
+      "name": "app.risk-free-rate",
+      "type": "java.math.BigDecimal",
+      "sourceType": "com.group13.mutualfundcalculatorbackend.config.AppProperties"
+    }
+  ],
+  "hints": [],
+  "ignored": {
+    "properties": []
+  }
+}
