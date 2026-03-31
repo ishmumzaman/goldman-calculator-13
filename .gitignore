@@ -1,3 +1,4 @@
 proj_info.md
 frontend/node_modules
 frontend/dist
+frontend/.env

@@ -26,20 +26,20 @@ export default function SidebarNav({ activeScreen, onNavigate }) {
 
         {/* Nav items */}
         <nav className="flex flex-col gap-1">
-          {NAV_ITEMS.map(({ key, label, icon: Icon }) => {
-            const active = activeScreen === key;
+          {NAV_ITEMS.map((item) => {
+            const active = activeScreen === item.key;
             return (
               <button
-                key={key}
-                onClick={() => onNavigate(key)}
+                key={item.key}
+                onClick={() => onNavigate(item.key)}
                 className={`flex items-center gap-3 w-full rounded-lg px-3.5 py-3 text-sm font-inter transition-colors
                   ${active
                     ? "bg-[var(--bg-elevated)] text-[var(--text-primary)] font-medium"
                     : "text-[var(--text-tertiary)] hover:bg-[var(--bg-elevated)]/40"
                   }`}
               >
-                <Icon size={18} className={active ? "text-[var(--gs-gold)]" : "text-[var(--text-muted)]"} />
-                {label}
+                <item.icon size={18} className={active ? "text-[var(--gs-gold)]" : "text-[var(--text-muted)]"} />
+                {item.label}
               </button>
             );
           })}

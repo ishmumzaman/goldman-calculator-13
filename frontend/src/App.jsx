@@ -34,7 +34,13 @@ export default function App() {
       setScreen("calculator");
       return;
     }
-    // TODO: Re-run forecast with the history item's params and navigate to results
+
+    if (item?.result) {
+      setCalcResult(item.result);
+      setScreen("results");
+      return;
+    }
+
     setScreen("calculator");
   }, []);
 

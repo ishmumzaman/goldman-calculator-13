@@ -2,11 +2,9 @@
  * @typedef {Object} Fund
  * @property {string} ticker
  * @property {string} name
+ * @property {string} family
  * @property {string} category
- * @property {number} beta
- * @property {number} lastYearReturn
- * @property {number} capmRate
- * @property {number} expenseRatio
+ * @property {string} benchmarkIndexTicker
  */
 
 /**
@@ -57,6 +55,7 @@
  * @property {number} optimistic
  * @property {string} date
  * @property {'gain' | 'loss'} status
+ * @property {CalculationResult} [result]
  */
 
 /**

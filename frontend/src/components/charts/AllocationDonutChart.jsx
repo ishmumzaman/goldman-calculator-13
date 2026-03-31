@@ -27,19 +27,23 @@ function donutSlicePath(a0, a1) {
 export default function AllocationDonutChart({ holdings = [], totalLabel = "$0" }) {
   const total = holdings.reduce((s, h) => s + h.principal, 0) || 1;
 
-  let angle = -Math.PI / 2;
-  const slices = holdings.map((h, i) => {
-    const frac = h.principal / total;
-    const sweep = frac * 2 * Math.PI;
-    const a0 = angle;
-    const a1 = angle + sweep;
-    angle = a1;
-    return {
-      key: h.id ?? `${h.ticker}-${i}`,
-      path: donutSlicePath(a0, a1),
-      color: h.color,
-    };
-  });
+  const slices = holdings.reduce(
+    (accumulator, holding, index) => {
+      const frac = holding.principal / total;
+      const sweep = frac * 2 * Math.PI;
+      const startAngle = accumulator.angle;
+      const endAngle = startAngle + sweep;
+
+      accumulator.slices.push({
+        key: holding.id ?? `${holding.ticker}-${index}`,
+        path: donutSlicePath(startAngle, endAngle),
+        color: holding.color,
+      });
+      accumulator.angle = endAngle;
+      return accumulator;
+    },
+    { angle: -Math.PI / 2, slices: [] },
+  ).slices;
 
   return (
     <div className="flex flex-col items-center gap-5 w-full">

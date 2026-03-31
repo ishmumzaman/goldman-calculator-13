@@ -1,151 +1,217 @@
-/* ──────────────────────────────────────────────
-   Mock API layer – swap for real fetch() later
-   ────────────────────────────────────────────── */
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8080").replace(/\/$/, "");
+const API_PREFIX = "/api/v1";
+const DEFAULT_PREVIEW_PRINCIPAL = 10000;
+const DEFAULT_PREVIEW_YEARS = 5;
+const DEFAULT_RISK_FREE_RATE = Number(import.meta.env.VITE_DEFAULT_RISK_FREE_RATE ?? 0.0435);
 
-const delay = (ms = 400) => new Promise((r) => setTimeout(r, ms));
+const HISTORY_STORAGE_KEY = "mutual-fund-calculation-history-v2";
+const PORTFOLIO_STORAGE_KEY = "mutual-fund-portfolio-holdings-v2";
+const PORTFOLIO_COLORS = ["var(--gs-gold)", "var(--gs-blue)", "var(--success)", "var(--orange-light)"];
 
-/* ── Funds ── */
-export const FUNDS = [
-  { ticker: "SOPVX", name: "ClearBridge Large Cap Growth", category: "Large Cap Growth", beta: 1.12, lastYearReturn: 0.184, capmRate: 0.201, expenseRatio: 0.0052 },
-  { ticker: "VFIAX", name: "Vanguard 500 Index", category: "Large Blend", beta: 1.0, lastYearReturn: 0.162, capmRate: 0.164, expenseRatio: 0.0004 },
-  { ticker: "FXAIX", name: "Fidelity 500 Index", category: "Large Blend", beta: 0.98, lastYearReturn: 0.162, capmRate: 0.1593, expenseRatio: 0.0002 },
-  { ticker: "SWPPX", name: "Schwab S&P 500 Index", category: "Large Blend", beta: 1.01, lastYearReturn: 0.158, capmRate: 0.168, expenseRatio: 0.0002 },
-  { ticker: "VTSAX", name: "Vanguard Total Stock Mkt", category: "Large Blend", beta: 1.04, lastYearReturn: 0.155, capmRate: 0.174, expenseRatio: 0.0003 },
-];
+let fundsCache = null;
 
-export async function fetchFunds() {
-  await delay();
-  return FUNDS;
+function isBrowser() {
+  return typeof window !== "undefined";
 }
 
-export async function fetchFund(ticker) {
-  await delay(200);
-  return FUNDS.find((f) => f.ticker === ticker) ?? null;
+function toNumber(value, fallback = 0) {
+  const num = Number(value);
+  return Number.isFinite(num) ? num : fallback;
 }
 
-/* ── Forecast (single fund) ── */
-export async function fetchForecast({ ticker, principal, years }) {
-  await delay(600);
-  const fund = FUNDS.find((f) => f.ticker === ticker);
-  if (!fund) throw new Error("Fund not found");
+function round2(value) {
+  return Math.round(toNumber(value) * 100) / 100;
+}
 
-  const rf = 0.0425;
-  const baseRate = fund.capmRate;
-  const consRate = Math.max(baseRate - 0.02, 0);
-  const optRate = baseRate + 0.02;
+function apiUrl(path, params) {
+  const url = new URL(`${API_BASE_URL}${API_PREFIX}${path}`);
+  if (params) {
+    Object.entries(params).forEach(([key, value]) => {
+      if (value == null) return;
+      url.searchParams.set(key, String(value));
+    });
+  }
+  return url.toString();
+}
 
-  const fv = (p, r, t) => p * Math.pow(1 + r, t);
+async function readResponseBody(response) {
+  const contentType = response.headers.get("content-type") ?? "";
+  if (contentType.includes("application/json")) {
+    return response.json();
+  }
+  const text = await response.text();
+  return text ? { message: text } : null;
+}
 
-  const yearlyValues = Array.from({ length: years + 1 }, (_, i) => fv(principal, baseRate, i));
+async function requestJson(path, params) {
+  const response = await fetch(apiUrl(path, params), {
+    headers: { Accept: "application/json" },
+  });
+  const body = await readResponseBody(response);
 
-  /** Same series the results page charts — deterministic for this ticker. */
-  const historicalSeries = buildFundHistorySeries(ticker);
+  if (!response.ok) {
+    const message =
+      body && typeof body === "object" && "message" in body && typeof body.message === "string"
+        ? body.message
+        : `Request failed with status ${response.status}`;
+    throw new Error(message);
+  }
+
+  return body;
+}
+
+function normalizeFund(raw) {
+  if (!raw || typeof raw !== "object") {
+    return null;
+  }
+
+  return {
+    ticker: String(raw.ticker ?? ""),
+    name: String(raw.name ?? raw.fundName ?? ""),
+    family: raw.family ? String(raw.family) : "",
+    category: raw.category ? String(raw.category) : "Mutual Fund",
+    benchmarkIndexTicker: raw.benchmarkIndexTicker ? String(raw.benchmarkIndexTicker) : "",
+  };
+}
+
+function futureValue(principal, rate, years) {
+  return principal * Math.pow(1 + rate, years);
+}
+
+function buildScenarios(principal, years, baseRate) {
+  const conservativeRate = Math.max(baseRate - 0.02, 0);
+  const optimisticRate = baseRate + 0.02;
+
+  return [
+    {
+      scenario: "conservative",
+      rate: conservativeRate,
+      futureValue: round2(futureValue(principal, conservativeRate, years)),
+    },
+    {
+      scenario: "base",
+      rate: baseRate,
+      futureValue: round2(futureValue(principal, baseRate, years)),
+    },
+    {
+      scenario: "optimistic",
+      rate: optimisticRate,
+      futureValue: round2(futureValue(principal, optimisticRate, years)),
+    },
+  ];
+}
+
+function buildYearlyValues(principal, years, rate) {
+  return Array.from({ length: years + 1 }, (_, year) => round2(futureValue(principal, rate, year)));
+}
+
+function hashTicker(ticker) {
+  let hash = 2166136261;
+  const str = String(ticker);
+  for (let i = 0; i < str.length; i++) {
+    hash ^= str.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  return hash >>> 0;
+}
+
+function seededUnit(seed, index) {
+  const value = Math.sin((seed + index * 2654435769) % 1e9) * 10000;
+  return value - Math.floor(value);
+}
+
+function buildHistoricalSeriesFromMetrics({ ticker, projectedRate, expectedReturn, beta }) {
+  if (!ticker) return [];
+
+  const seed = hashTicker(ticker);
+  const annualRate = Math.max(toNumber(projectedRate, 0.001), 0.001);
+  const trailingReturn = toNumber(expectedReturn, annualRate);
+  const betaValue = toNumber(beta, 1);
+  const monthlyLongRun = Math.pow(1 + annualRate * 0.62, 1 / 12) - 1;
+  const noiseAmplitude = 0.011 * (0.82 + 0.18 * Math.min(Math.max(betaValue, 0.5), 1.8));
+
+  const points = [];
+  let value = 100;
+  points.push({ month: 0, value: round2(value) });
+
+  for (let month = 1; month <= 47; month++) {
+    const unit = seededUnit(seed, month) - 0.5;
+    const monthlyReturn = monthlyLongRun + unit * noiseAmplitude;
+    value *= 1 + monthlyReturn;
+    points.push({ month, value: round2(value) });
+  }
+
+  const finalYearGrowth = Math.pow(1 + trailingReturn, 1 / 12);
+  for (let month = 48; month < 60; month++) {
+    value *= finalYearGrowth;
+    points.push({ month, value: round2(value) });
+  }
+
+  return points;
+}
+
+function mapForecastResponse(raw, fundMeta) {
+  const principal = toNumber(raw?.initialInvestment);
+  const years = toNumber(raw?.years);
+  const projectedRate = toNumber(raw?.annualRate);
+  const expectedReturn = toNumber(raw?.expectedReturnRate);
+  const riskFreeRate = toNumber(raw?.riskFreeRate, DEFAULT_RISK_FREE_RATE);
+  const beta = toNumber(raw?.beta, 1);
+  const ticker = String(raw?.ticker ?? fundMeta?.ticker ?? "");
+  const fund = {
+    ticker,
+    name: String(raw?.fundName ?? fundMeta?.name ?? ticker),
+    family: fundMeta?.family ?? "",
+    category: fundMeta?.category ?? "Mutual Fund",
+    benchmarkIndexTicker: fundMeta?.benchmarkIndexTicker ?? "",
+  };
+  const scenarios = buildScenarios(principal, years, projectedRate);
 
   return {
     fund,
     principal,
     years,
-    projectedRate: baseRate,
-    futureValue: fv(principal, baseRate, years),
-    riskFreeRate: rf,
-    beta: fund.beta,
-    expectedReturn: fund.lastYearReturn,
-    scenarios: [
-      { scenario: "conservative", rate: consRate, futureValue: fv(principal, consRate, years) },
-      { scenario: "base", rate: baseRate, futureValue: fv(principal, baseRate, years) },
-      { scenario: "optimistic", rate: optRate, futureValue: fv(principal, optRate, years) },
-    ],
-    yearlyValues,
-    historicalSeries,
+    projectedRate,
+    futureValue: toNumber(raw?.futureValue),
+    riskFreeRate,
+    beta,
+    expectedReturn,
+    scenarios,
+    yearlyValues: buildYearlyValues(principal, years, projectedRate),
+    historicalSeries: buildHistoricalSeriesFromMetrics({
+      ticker,
+      projectedRate,
+      expectedReturn,
+      beta,
+    }),
+    currency: String(raw?.currency ?? "USD"),
+    calculationTimestamp: raw?.calculationTimestamp ?? new Date().toISOString(),
   };
 }
 
-/* ── Compare (2-3 funds) ── */
-export async function fetchComparison({ tickers, principal, years }) {
-  await delay(600);
-  return tickers.map((ticker) => {
-    const fund = FUNDS.find((f) => f.ticker === ticker);
-    if (!fund) return null;
-    const fv = principal * Math.pow(1 + fund.capmRate, years);
-    return { fund, futureValue: fv, projectedRate: fund.capmRate };
-  }).filter(Boolean);
+function formatSavedDate(isoString) {
+  return new Date(isoString).toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
 }
 
-/* ── History ── */
-const MOCK_HISTORY = [
-  { id: "1", fundName: "Fidelity Contrafund", ticker: "FCNTX", principal: 25000, years: 10, conservative: 43438, base: 51799, optimistic: 61799, date: "Mar 17, 2026", status: "gain" },
-  { id: "2", fundName: "Vanguard 500 Index", ticker: "VFIAX", principal: 70899, years: 5, conservative: 119390, base: 131986, optimistic: 131986, date: "Mar 17, 2026", status: "gain" },
-  { id: "3", fundName: "T. Rowe Price Growth", ticker: "PRGFX", principal: 10987, years: 8, conservative: 12944, base: 15627, optimistic: 15627, date: "Mar 15, 2026", status: "gain" },
-  { id: "4", fundName: "iShares S&P 500 Index", ticker: "BSPAX", principal: 95000, years: 76, conservative: 13199, base: 118706, optimistic: 118706, date: "Mar 12, 2026", status: "loss" },
-  { id: "5", fundName: "Fidelity Blue Chip", ticker: "FBIOX", principal: 100000, years: 8, conservative: 131414, base: 82382, optimistic: 68768, date: "Mar 10, 2026", status: "gain" },
-  { id: "6", fundName: "Allianz Core S&P 500", ticker: "ACSAX", principal: 32000, years: 12, conservative: 24100, base: 50960, optimistic: 50960, date: "Feb 26, 2026", status: "gain" },
-];
-
-export async function fetchHistory() {
-  await delay(300);
-  return MOCK_HISTORY;
-}
-
-export async function saveCalculation(item) {
-  await delay(200);
-  MOCK_HISTORY.unshift({ ...item, id: String(Date.now()), date: new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) });
-  return { ok: true };
-}
-
-/* ── Portfolio (persisted in localStorage) ── */
-const PORTFOLIO_STORAGE_KEY = "mutual-fund-portfolio-holdings-v1";
-
-const PORTFOLIO_COLORS = ["var(--gs-gold)", "var(--gs-blue)", "var(--success)", "var(--orange-light)"];
-
-const MOCK_HOLDINGS = [
-  { id: "seed-vfiax", ticker: "VFIAX", name: "Vanguard 500 Index", principal: 50000, years: 10, projRate: 0.112, futureValue: 144626, color: "var(--gs-gold)" },
-  { id: "seed-fxaix", ticker: "FXAIX", name: "Fidelity 500 Index", principal: 35000, years: 7, projRate: 0.098, futureValue: 67442, color: "var(--gs-blue)" },
-  { id: "seed-swppx", ticker: "SWPPX", name: "Schwab S&P 500 Index", principal: 25000, years: 5, projRate: 0.081, futureValue: 36924, color: "var(--success)" },
-  { id: "seed-vtsax", ticker: "VTSAX", name: "Vanguard Total Stock Mkt", principal: 37832, years: 8, projRate: 0.074, futureValue: 66280, color: "var(--orange-light)" },
-];
-
-function ensureHoldingIds(list) {
-  return list.map((h, i) => ({
-    ...h,
-    id: h.id ?? `${h.ticker}-${i}`,
-  }));
-}
-
-function loadPortfolioHoldingsFromStorage() {
-  if (typeof localStorage === "undefined") return null;
+function loadListFromStorage(key) {
+  if (!isBrowser()) return [];
   try {
-    const raw = localStorage.getItem(PORTFOLIO_STORAGE_KEY);
-    if (raw == null) return null;
+    const raw = window.localStorage.getItem(key);
+    if (!raw) return [];
     const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return null;
-    return ensureHoldingIds(parsed);
+    return Array.isArray(parsed) ? parsed : [];
   } catch {
-    return null;
+    return [];
   }
 }
 
-function savePortfolioHoldingsToStorage(list) {
-  if (typeof localStorage === "undefined") return;
-  localStorage.setItem(PORTFOLIO_STORAGE_KEY, JSON.stringify(list));
-}
-
-function getSeedHoldings() {
-  return MOCK_HOLDINGS.map((h) => ({ ...h }));
-}
-
-function buildHoldingRow(fund, principal, years, colorIndex) {
-  const projRate = fund.capmRate;
-  const futureValue = Math.round(principal * Math.pow(1 + projRate, years));
-  return {
-    id: `${fund.ticker}-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
-    ticker: fund.ticker,
-    name: fund.name,
-    principal,
-    years,
-    projRate,
-    futureValue,
-    color: PORTFOLIO_COLORS[colorIndex % PORTFOLIO_COLORS.length],
-  };
+function saveListToStorage(key, items) {
+  if (!isBrowser()) return;
+  window.localStorage.setItem(key, JSON.stringify(items));
 }
 
 function summarizePortfolio(holdings) {
@@ -158,143 +224,159 @@ function summarizePortfolio(holdings) {
       bestPerformer: { ticker: "—", projRate: 0 },
     };
   }
-  const totalValue = holdings.reduce((s, h) => s + h.principal, 0);
-  const totalProjected = holdings.reduce((s, h) => s + h.futureValue, 0);
-  const avgReturn = holdings.reduce((s, h) => s + h.projRate, 0) / holdings.length;
-  const best = [...holdings].sort((a, b) => b.projRate - a.projRate)[0];
-  return { holdings, totalValue, totalProjected, avgReturn, bestPerformer: best };
+
+  const totalValue = holdings.reduce((sum, holding) => sum + toNumber(holding.principal), 0);
+  const totalProjected = holdings.reduce((sum, holding) => sum + toNumber(holding.futureValue), 0);
+  const avgReturn = holdings.reduce((sum, holding) => sum + toNumber(holding.projRate), 0) / holdings.length;
+  const bestPerformer = [...holdings].sort((left, right) => toNumber(right.projRate) - toNumber(left.projRate))[0];
+
+  return { holdings, totalValue, totalProjected, avgReturn, bestPerformer };
+}
+
+function buildPortfolioHolding(result, colorIndex) {
+  return {
+    id: `${result.fund.ticker}-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+    ticker: result.fund.ticker,
+    name: result.fund.name,
+    principal: result.principal,
+    years: result.years,
+    projRate: result.projectedRate,
+    futureValue: result.futureValue,
+    color: PORTFOLIO_COLORS[colorIndex % PORTFOLIO_COLORS.length],
+  };
+}
+
+function buildHistoryItem(result) {
+  const conservative = result.scenarios.find((item) => item.scenario === "conservative");
+  const base = result.scenarios.find((item) => item.scenario === "base");
+  const optimistic = result.scenarios.find((item) => item.scenario === "optimistic");
+  const savedAt = result.calculationTimestamp ?? new Date().toISOString();
+
+  return {
+    id: `${result.fund.ticker}-${savedAt}`,
+    fundName: result.fund.name,
+    ticker: result.fund.ticker,
+    principal: result.principal,
+    years: result.years,
+    conservative: round2(conservative?.futureValue),
+    base: round2(base?.futureValue ?? result.futureValue),
+    optimistic: round2(optimistic?.futureValue),
+    date: formatSavedDate(savedAt),
+    status: result.futureValue >= result.principal ? "gain" : "loss",
+    savedAt,
+    result,
+  };
+}
+
+export async function fetchFunds() {
+  if (fundsCache) return fundsCache;
+
+  const body = await requestJson("/funds");
+  const funds = Array.isArray(body?.funds)
+    ? body.funds.map(normalizeFund).filter(Boolean)
+    : [];
+
+  fundsCache = funds;
+  return funds;
+}
+
+export async function fetchFund(ticker) {
+  const funds = await fetchFunds();
+  return funds.find((fund) => fund.ticker === ticker) ?? null;
+}
+
+export async function fetchForecast({ ticker, principal, years }) {
+  const funds = await fetchFunds();
+  const fundMeta = funds.find((fund) => fund.ticker === ticker) ?? null;
+
+  const body = await requestJson("/calculations/future-value", {
+    ticker,
+    initialInvestment: principal,
+    years,
+  });
+
+  return mapForecastResponse(body, fundMeta);
+}
+
+export async function fetchComparison({ tickers, principal, years }) {
+  const uniqueTickers = [...new Set(tickers)].filter(Boolean);
+  const results = await Promise.all(
+    uniqueTickers.map((ticker) => fetchForecast({ ticker, principal, years })),
+  );
+  return results;
+}
+
+export async function fetchHistory() {
+  return loadListFromStorage(HISTORY_STORAGE_KEY);
+}
+
+export async function saveCalculation(result) {
+  const items = loadListFromStorage(HISTORY_STORAGE_KEY);
+  const next = [buildHistoryItem(result), ...items].slice(0, 25);
+  saveListToStorage(HISTORY_STORAGE_KEY, next);
+  return { ok: true };
 }
 
 export async function fetchPortfolio() {
-  await delay(300);
-  let list = loadPortfolioHoldingsFromStorage();
-  if (list == null) {
-    list = getSeedHoldings();
-  } else {
-    list = ensureHoldingIds(list);
-  }
-  return summarizePortfolio(list);
+  return summarizePortfolio(loadListFromStorage(PORTFOLIO_STORAGE_KEY));
 }
 
-/**
- * Add a holding using CAPM rate from FUNDS; persists to localStorage.
- * @param {{ ticker: string, principal: number, years: number }} input
- */
 export async function addPortfolioHolding({ ticker, principal, years }) {
-  await delay(200);
-  const fund = FUNDS.find((f) => f.ticker === ticker);
-  if (!fund) throw new Error("Fund not found");
-  const p = Number(principal);
-  const y = Number(years);
-  if (!Number.isFinite(p) || p <= 0) throw new Error("Principal must be greater than zero");
-  if (!Number.isFinite(y) || y < 1 || y > 50) throw new Error("Years must be between 1 and 50");
-
-  let list = loadPortfolioHoldingsFromStorage();
-  if (list == null) list = getSeedHoldings();
-  else list = ensureHoldingIds(list);
-
-  const row = buildHoldingRow(fund, p, y, list.length);
-  list.push(row);
-  savePortfolioHoldingsToStorage(list);
-  return summarizePortfolio(list);
-}
-
-/**
- * Remove a holding by stable row id.
- * @param {string} id
- */
-export async function removePortfolioHolding(id) {
-  await delay(150);
-  let list = loadPortfolioHoldingsFromStorage();
-  if (list == null) list = getSeedHoldings();
-  else list = ensureHoldingIds(list);
-
-  const next = list.filter((h) => h.id !== id);
-  savePortfolioHoldingsToStorage(next);
+  const current = loadListFromStorage(PORTFOLIO_STORAGE_KEY);
+  const forecast = await fetchForecast({ ticker, principal, years });
+  const next = [...current, buildPortfolioHolding(forecast, current.length)];
+  saveListToStorage(PORTFOLIO_STORAGE_KEY, next);
   return summarizePortfolio(next);
 }
 
-/* ── Explanation ── */
-export async function fetchExplanation({ ticker }) {
-  await delay(300);
-  const fund = FUNDS.find((f) => f.ticker === ticker);
-  if (!fund) return [];
+export async function removePortfolioHolding(id) {
+  const current = loadListFromStorage(PORTFOLIO_STORAGE_KEY);
+  const next = current.filter((holding) => holding.id !== id);
+  saveListToStorage(PORTFOLIO_STORAGE_KEY, next);
+  return summarizePortfolio(next);
+}
+
+export async function fetchExplanation({ result } = {}) {
+  if (!result) return [];
+
   return [
-    { question: "What rate did we use?", answer: `We used a CAPM-derived rate of ${(fund.capmRate * 100).toFixed(2)}%. The formula is r = Rf + β(Rm − Rf) = 4.25% + ${fund.beta} × (${(fund.lastYearReturn * 100).toFixed(1)}% − 4.25%) = ${(fund.capmRate * 100).toFixed(2)}%.` },
-    { question: "How was beta obtained?", answer: `Beta (β = ${fund.beta}) measures how volatile this fund is relative to the overall market. A β of ${fund.beta} means the fund moves ~${Math.round((fund.beta - 1) * 100)}% more than the market on average.` },
-    { question: "How was expected return estimated?", answer: "The expected market return is based on historical S&P 500 performance and analyst consensus for broad market returns over the selected horizon." },
-    { question: "What should I know?", answer: "This is an estimate, not a guarantee. Actual returns depend on market conditions, fund management, and economic factors. Past performance does not guarantee future results." },
+    {
+      question: "What rate did we use?",
+      answer: `We used a CAPM-derived annual rate of ${(result.projectedRate * 100).toFixed(2)}%. The calculation uses Rf + β(Rm − Rf) with a risk-free rate of ${(result.riskFreeRate * 100).toFixed(2)}%, beta of ${result.beta.toFixed(2)}, and expected market return of ${(result.expectedReturn * 100).toFixed(2)}%.`,
+    },
+    {
+      question: "How was beta used?",
+      answer: `Beta measures how sensitive the fund is to market moves. A beta of ${result.beta.toFixed(2)} means the model scales the market risk premium by that amount before projecting the annual return.`,
+    },
+    {
+      question: "What does expected return mean here?",
+      answer: `The backend supplied an expected return input of ${(result.expectedReturn * 100).toFixed(2)}% for this fund’s CAPM calculation. That value is distinct from the projected annual rate and is one of the inputs used to derive it.`,
+    },
+    {
+      question: "What should I keep in mind?",
+      answer: "These outputs are model-based estimates. They do not account for taxes, fees, changing market regimes, or future contributions, and they should not be treated as guaranteed returns.",
+    },
   ];
 }
 
-/* ── Historical index series (simulated, fund-consistent) ── */
-
-function hashTicker(ticker) {
-  let h = 2166136261;
-  const s = String(ticker);
-  for (let i = 0; i < s.length; i++) {
-    h ^= s.charCodeAt(i);
-    h = Math.imul(h, 16777619);
-  }
-  return h >>> 0;
-}
-
-/** @param {number} seed @param {number} i @returns {number} in [0, 1) */
-function seededUnit(seed, i) {
-  const x = Math.sin((seed + i * 2654435769) % 1e9) * 10000;
-  return x - Math.floor(x);
-}
-
-function round2(n) {
-  return Math.round(n * 100) / 100;
-}
-
-/**
- * 60 monthly points: normalized index (base 100).
- * - Months 0–47: drift derived from fund CAPM rate + deterministic “noise” scaled by beta.
- * - Months 48–59: exactly 12 steps so total return matches fund.lastYearReturn (stated trailing return).
- * Same ticker always yields the same path (no Math.random).
- * @param {string} ticker
- * @returns {Array<{ month: number, value: number }>}
- */
-export function buildFundHistorySeries(ticker) {
-  const fund = FUNDS.find((f) => f.ticker === ticker);
-  if (!fund) return [];
-
-  const seed = hashTicker(ticker);
-  const capm = Math.max(fund.capmRate, 0.001);
-  const trail = fund.lastYearReturn;
-  /** Long-window monthly drift slightly below CAPM so the final 12m step can absorb trailing return. */
-  const monthlyLongRun = Math.pow(1 + capm * 0.62, 1 / 12) - 1;
-  const noiseAmp = 0.011 * (0.82 + 0.18 * Math.min(Math.max(fund.beta, 0.5), 1.8));
-
-  const points = [];
-  let v = 100;
-  points.push({ month: 0, value: round2(v) });
-
-  for (let m = 1; m <= 47; m++) {
-    const u = seededUnit(seed, m) - 0.5;
-    const r = monthlyLongRun + u * noiseAmp;
-    v *= 1 + r;
-    points.push({ month: m, value: round2(v) });
+export async function fetchFundHistory(input) {
+  if (input && typeof input === "object" && "fund" in input) {
+    return buildHistoricalSeriesFromMetrics({
+      ticker: input.fund?.ticker,
+      projectedRate: input.projectedRate,
+      expectedReturn: input.expectedReturn,
+      beta: input.beta,
+    });
   }
 
-  const g = Math.pow(1 + trail, 1 / 12);
-  for (let m = 48; m < 60; m++) {
-    v *= g;
-    points.push({ month: m, value: round2(v) });
+  if (typeof input === "string" && input) {
+    const forecast = await fetchForecast({
+      ticker: input,
+      principal: DEFAULT_PREVIEW_PRINCIPAL,
+      years: DEFAULT_PREVIEW_YEARS,
+    });
+    return forecast.historicalSeries ?? [];
   }
 
-  return points;
-}
-
-/**
- * Fetch historical series for a fund (mock: `{ month, value }[]`).
- * When wired to a real API, the response may be a bare array or wrapped
- * (`{ data, points, series, … }`); `HistoricalChart` normalizes via `normalizeHistoricalLineData`
- * in `src/lib/historicalSeries.js`.
- */
-export async function fetchFundHistory(ticker) {
-  await delay(400);
-  return buildFundHistorySeries(ticker);
+  return [];
 }

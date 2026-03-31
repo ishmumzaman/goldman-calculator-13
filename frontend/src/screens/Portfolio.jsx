@@ -16,17 +16,20 @@ export default function Portfolio() {
   const [loading, setLoading] = useState(true);
   const [addOpen, setAddOpen] = useState(false);
 
-  const reload = useCallback(() => {
-    setLoading(true);
-    fetchPortfolio().then((d) => {
-      setData(d);
-      setLoading(false);
-    });
-  }, []);
-
   useEffect(() => {
-    reload();
-  }, [reload]);
+    let cancelled = false;
+
+    fetchPortfolio().then((portfolio) => {
+      if (!cancelled) {
+        setData(portfolio);
+        setLoading(false);
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const handleAdded = useCallback((summary) => {
     setData(summary);

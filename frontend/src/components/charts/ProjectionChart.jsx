@@ -2,9 +2,9 @@
  * Projected growth bar chart skeleton.
  * TODO: Replace placeholder bars with Recharts <BarChart> or Chart.js bar chart.
  *
- * @param {{ yearlyValues: number[], years: number, title?: string }} props
+ * @param {{ yearlyValues: number[], title?: string }} props
  */
-export default function ProjectionChart({ yearlyValues = [], years = 5, title = "Growth Projection" }) {
+export default function ProjectionChart({ yearlyValues = [], title = "Growth Projection" }) {
   const maxVal = Math.max(...yearlyValues, 1);
 
   return (

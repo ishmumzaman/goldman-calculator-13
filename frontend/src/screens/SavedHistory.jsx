@@ -14,7 +14,6 @@ export default function SavedHistory({ onViewResult }) {
 
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
     fetchHistory().then((data) => {
       if (!cancelled) {
         setItems(data);

@@ -1,13 +1,14 @@
 import { useEffect, useState } from "react";
 import { X } from "lucide-react";
-import { FUNDS, addPortfolioHolding } from "../../lib/api.js";
+import { addPortfolioHolding, fetchFunds } from "../../lib/api.js";
 
 /**
  * Modal to add a portfolio holding (fund + principal + horizon).
  * @param {{ open: boolean, onClose: () => void, onAdded: (summary: object) => void }} props
  */
 export default function AddHoldingModal({ open, onClose, onAdded }) {
-  const [ticker, setTicker] = useState(FUNDS[0]?.ticker ?? "");
+  const [funds, setFunds] = useState([]);
+  const [ticker, setTicker] = useState("");
   const [principal, setPrincipal] = useState(10000);
   const [years, setYears] = useState(10);
   const [submitting, setSubmitting] = useState(false);
@@ -15,20 +16,40 @@ export default function AddHoldingModal({ open, onClose, onAdded }) {
 
   useEffect(() => {
     if (!open) return;
+
+    let cancelled = false;
     setError(null);
-    const onKey = (e) => {
-      if (e.key === "Escape") onClose();
+
+    fetchFunds()
+      .then((items) => {
+        if (cancelled) return;
+        setFunds(items);
+        setTicker((current) => current || items[0]?.ticker || "");
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          setError(err?.message ?? "Could not load funds");
+        }
+      });
+
+    const onKey = (event) => {
+      if (event.key === "Escape") onClose();
     };
     window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+
+    return () => {
+      cancelled = true;
+      window.removeEventListener("keydown", onKey);
+    };
   }, [open, onClose]);
 
   if (!open) return null;
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const handleSubmit = async (event) => {
+    event.preventDefault();
     setError(null);
     setSubmitting(true);
+
     try {
       const summary = await addPortfolioHolding({ ticker, principal, years });
       onAdded(summary);
@@ -46,13 +67,13 @@ export default function AddHoldingModal({ open, onClose, onAdded }) {
       role="dialog"
       aria-modal="true"
       aria-labelledby="add-holding-title"
-      onMouseDown={(e) => {
-        if (e.target === e.currentTarget) onClose();
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget) onClose();
       }}
     >
       <div
         className="w-full max-w-md rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-card)] shadow-xl"
-        onMouseDown={(e) => e.stopPropagation()}
+        onMouseDown={(event) => event.stopPropagation()}
       >
         <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border-subtle)]">
           <h2 id="add-holding-title" className="font-instrument text-xl text-[var(--text-primary)]">
@@ -76,12 +97,13 @@ export default function AddHoldingModal({ open, onClose, onAdded }) {
             <select
               id="add-holding-fund"
               value={ticker}
-              onChange={(e) => setTicker(e.target.value)}
-              className="h-11 px-3.5 rounded-lg bg-[var(--bg-surface)] border border-[var(--border-default)] font-inter text-sm text-[var(--text-primary)] outline-none"
+              onChange={(event) => setTicker(event.target.value)}
+              disabled={!funds.length}
+              className="h-11 px-3.5 rounded-lg bg-[var(--bg-surface)] border border-[var(--border-default)] font-inter text-sm text-[var(--text-primary)] outline-none disabled:opacity-50"
             >
-              {FUNDS.map((f) => (
-                <option key={f.ticker} value={f.ticker}>
-                  {f.ticker} — {f.name}
+              {funds.map((fund) => (
+                <option key={fund.ticker} value={fund.ticker}>
+                  {fund.ticker} - {fund.name}
                 </option>
               ))}
             </select>
@@ -98,7 +120,7 @@ export default function AddHoldingModal({ open, onClose, onAdded }) {
               step={1}
               inputMode="decimal"
               value={principal}
-              onChange={(e) => setPrincipal(Number(e.target.value) || 0)}
+              onChange={(event) => setPrincipal(Number(event.target.value) || 0)}
               className="h-11 px-3.5 rounded-lg bg-[var(--bg-surface)] border border-[var(--border-default)] font-dm-mono text-sm text-[var(--text-primary)] outline-none"
             />
           </div>
@@ -113,7 +135,7 @@ export default function AddHoldingModal({ open, onClose, onAdded }) {
               min={1}
               max={50}
               value={years}
-              onChange={(e) => setYears(Number(e.target.value) || 1)}
+              onChange={(event) => setYears(Number(event.target.value) || 1)}
               className="h-11 px-3.5 rounded-lg bg-[var(--bg-surface)] border border-[var(--border-default)] font-dm-mono text-sm text-[var(--text-primary)] outline-none"
             />
           </div>
@@ -134,10 +156,10 @@ export default function AddHoldingModal({ open, onClose, onAdded }) {
             </button>
             <button
               type="submit"
-              disabled={submitting}
+              disabled={submitting || !ticker}
               className="px-5 py-2.5 rounded-lg bg-[var(--gs-gold)] font-inter text-sm font-semibold text-[var(--bg-page)] disabled:opacity-50"
             >
-              {submitting ? "Adding…" : "Add to portfolio"}
+              {submitting ? "Adding..." : "Add to portfolio"}
             </button>
           </div>
         </form>

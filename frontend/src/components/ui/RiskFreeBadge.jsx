@@ -1,7 +1,7 @@
 /**
- * "10Y Treasury Rate: 4.25%" badge shown in headers.
+ * "10Y Treasury Rate" badge shown in headers.
  */
-export default function RiskFreeBadge({ rate = "4.25%" }) {
+export default function RiskFreeBadge({ rate = "4.35%" }) {
   return (
     <div className="flex items-center gap-2">
       <span className="font-inter text-xs font-medium text-[var(--text-tertiary)]">10Y Treasury Rate:</span>
