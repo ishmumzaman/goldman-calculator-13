@@ -25,7 +25,7 @@ The results screen expects a **`CalculationResult`** ([`types.js`](../frontend/s
 |--------------------------------|----------|
 | `initialInvestment` | `principal` |
 | `annualRate` | `projectedRate` |
-| `expectedReturnRate` | `expectedReturn` |
+| `expectedReturnRate` | `expectedReturn` (benchmark 5-year return input) |
 | `ticker` + `fundName` | `fund`: `{ ticker, name, … }` |
 
 **Not in the API yet:** `scenarios` (three cards) and `yearlyValues` (charts). The app can **derive** these in `api.js` from `annualRate` until the backend adds them.

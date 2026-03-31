@@ -48,7 +48,7 @@ public class CalculationService {
         FundDefinition fundDefinition = fundService.requireFundByTicker(normalizedTicker);
         BigDecimal riskFreeRate = appProperties.getRiskFreeRate();
         BigDecimal beta = betaClient.fetchBeta(fundDefinition.ticker());
-        BigDecimal expectedReturnRate = historicalReturnService.calculatePreviousFullYearReturn(fundDefinition.ticker());
+        BigDecimal expectedReturnRate = historicalReturnService.calculateTrailingFiveYearReturn(fundDefinition.benchmarkIndexTicker());
         BigDecimal annualRate = formulaService.calculateAnnualRate(riskFreeRate, beta, expectedReturnRate);
         BigDecimal futureValue = formulaService.calculateFutureValue(initialInvestment, annualRate, years);
 

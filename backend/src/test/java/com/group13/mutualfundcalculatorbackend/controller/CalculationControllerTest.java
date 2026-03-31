@@ -117,13 +117,13 @@ class CalculationControllerTest {
     @Test
     void returns503ForHistoricalPriceFailure() throws Exception {
         given(calculationService.calculateFutureValue(eq("VFIAX"), eq(new BigDecimal("10000")), eq(5)))
-                .willThrow(new UpstreamDataException("No usable historical price data exists for the previous full calendar year"));
+                .willThrow(new UpstreamDataException("No usable historical price data exists for the benchmark 5-year lookback window"));
 
         mockMvc.perform(get("/api/v1/calculations/future-value")
                         .queryParam("ticker", "VFIAX")
                         .queryParam("initialInvestment", "10000")
                         .queryParam("years", "5"))
                 .andExpect(status().isServiceUnavailable())
-                .andExpect(jsonPath("$.message").value("No usable historical price data exists for the previous full calendar year"));
+                .andExpect(jsonPath("$.message").value("No usable historical price data exists for the benchmark 5-year lookback window"));
     }
 }
