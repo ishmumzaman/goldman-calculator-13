@@ -39,7 +39,7 @@ class CalculationServiceTest {
         when(fundService.requireFundByTicker("VFIAX")).thenReturn(fundDefinition);
         when(fundService.getFunds()).thenReturn(List.of(fundDefinition));
         when(betaClient.fetchBeta("VFIAX")).thenReturn(new BigDecimal("0.980000"));
-        when(historicalReturnService.calculatePreviousFullYearReturn("VFIAX")).thenReturn(new BigDecimal("0.120000"));
+        when(historicalReturnService.calculateTrailingFiveYearReturn("^GSPC")).thenReturn(new BigDecimal("0.120000"));
 
         CalculationService calculationService = new CalculationService(
                 fundService,

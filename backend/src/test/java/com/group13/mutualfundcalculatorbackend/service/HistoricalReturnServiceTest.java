@@ -5,10 +5,7 @@ import com.group13.mutualfundcalculatorbackend.exception.UpstreamDataException;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
-import java.time.Clock;
-import java.time.Instant;
 import java.time.LocalDate;
-import java.time.ZoneOffset;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -19,55 +16,51 @@ import static org.mockito.Mockito.when;
 class HistoricalReturnServiceTest {
 
     @Test
-    void calculatesReturnForPreviousFullCalendarYear() {
+    void calculatesTrailingFiveYearReturnFromBenchmarkSeries() {
         HistoricalPriceClient client = mock(HistoricalPriceClient.class);
-        when(client.fetchDailyCloseSeries("VFIAX")).thenReturn(Map.of(
-                LocalDate.parse("2024-12-31"), new BigDecimal("8.50"),
-                LocalDate.parse("2025-01-02"), new BigDecimal("10.00"),
-                LocalDate.parse("2025-06-30"), new BigDecimal("11.50"),
-                LocalDate.parse("2025-12-31"), new BigDecimal("12.00"),
-                LocalDate.parse("2026-01-02"), new BigDecimal("13.00")
+        when(client.fetchDailyCloseSeries("^GSPC")).thenReturn(Map.of(
+                LocalDate.parse("2021-03-19"), new BigDecimal("98.00"),
+                LocalDate.parse("2021-03-22"), new BigDecimal("100.00"),
+                LocalDate.parse("2024-06-28"), new BigDecimal("130.00"),
+                LocalDate.parse("2026-03-20"), new BigDecimal("150.00")
         ));
 
-        HistoricalReturnService service = new HistoricalReturnService(client, fixedClock());
+        HistoricalReturnService service = new HistoricalReturnService(client);
 
-        BigDecimal result = service.calculatePreviousFullYearReturn("VFIAX");
+        BigDecimal result = service.calculateTrailingFiveYearReturn("^GSPC");
 
-        assertThat(result).isEqualByComparingTo("0.2");
+        assertThat(result).isEqualByComparingTo("0.5");
     }
 
     @Test
-    void usesFirstAndLastTradingDaysWithinPreviousYear() {
+    void usesFirstTradingDayOnOrAfterLookbackBoundary() {
         HistoricalPriceClient client = mock(HistoricalPriceClient.class);
-        when(client.fetchDailyCloseSeries("VFIAX")).thenReturn(Map.of(
-                LocalDate.parse("2025-01-03"), new BigDecimal("9.00"),
-                LocalDate.parse("2025-12-30"), new BigDecimal("11.00"),
-                LocalDate.parse("2025-12-31"), new BigDecimal("12.00")
+        when(client.fetchDailyCloseSeries("^GSPC")).thenReturn(Map.of(
+                LocalDate.parse("2020-12-31"), new BigDecimal("90.00"),
+                LocalDate.parse("2021-03-19"), new BigDecimal("99.00"),
+                LocalDate.parse("2021-03-22"), new BigDecimal("100.00"),
+                LocalDate.parse("2026-03-20"), new BigDecimal("140.00")
         ));
 
-        HistoricalReturnService service = new HistoricalReturnService(client, fixedClock());
+        HistoricalReturnService service = new HistoricalReturnService(client);
 
-        BigDecimal result = service.calculatePreviousFullYearReturn("VFIAX");
+        BigDecimal result = service.calculateTrailingFiveYearReturn("^GSPC");
 
-        assertThat(result).isEqualByComparingTo("0.3333333333333333");
+        assertThat(result).isEqualByComparingTo("0.4");
     }
 
     @Test
-    void throwsWhenPreviousYearHasNoUsableData() {
+    void throwsWhenFiveYearLookbackHasInsufficientHistory() {
         HistoricalPriceClient client = mock(HistoricalPriceClient.class);
-        when(client.fetchDailyCloseSeries("VFIAX")).thenReturn(Map.of(
-                LocalDate.parse("2024-12-31"), new BigDecimal("8.50"),
-                LocalDate.parse("2026-01-02"), new BigDecimal("13.00")
+        when(client.fetchDailyCloseSeries("^GSPC")).thenReturn(Map.of(
+                LocalDate.parse("2021-03-22"), new BigDecimal("100.00"),
+                LocalDate.parse("2026-03-20"), new BigDecimal("140.00")
         ));
 
-        HistoricalReturnService service = new HistoricalReturnService(client, fixedClock());
+        HistoricalReturnService service = new HistoricalReturnService(client);
 
-        assertThatThrownBy(() -> service.calculatePreviousFullYearReturn("VFIAX"))
+        assertThatThrownBy(() -> service.calculateTrailingFiveYearReturn("^GSPC"))
                 .isInstanceOf(UpstreamDataException.class)
-                .hasMessage("No usable historical price data exists for the previous full calendar year");
-    }
-
-    private Clock fixedClock() {
-        return Clock.fixed(Instant.parse("2026-03-21T00:00:00Z"), ZoneOffset.UTC);
+                .hasMessage("No usable historical price data exists for the benchmark 5-year lookback window");
     }
 }

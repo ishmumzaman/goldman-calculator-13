@@ -33,7 +33,7 @@ class HistoricalPriceClientTest {
 
     @Test
     void parsesDailyPriceSeries() {
-        mockServer.expect(requestTo("https://api.newtonanalytics.com/price/?ticker=VFIAX&interval=1d&dataType=04&observations=800"))
+        mockServer.expect(requestTo("https://api.newtonanalytics.com/price/?ticker=VFIAX&interval=1d&dataType=04&observations=1600"))
                 .andExpect(method(GET))
                 .andRespond(withSuccess("""
                         {
@@ -55,7 +55,7 @@ class HistoricalPriceClientTest {
 
     @Test
     void throwsWhenApiReturnsUnexpectedStatus() {
-        mockServer.expect(requestTo("https://api.newtonanalytics.com/price/?ticker=VFIAX&interval=1d&dataType=04&observations=800"))
+        mockServer.expect(requestTo("https://api.newtonanalytics.com/price/?ticker=VFIAX&interval=1d&dataType=04&observations=1600"))
                 .andExpect(method(GET))
                 .andRespond(withSuccess("""
                         {
@@ -82,7 +82,7 @@ class HistoricalPriceClientTest {
         newtonProperties.setObservations(12);
         newtonProperties.setPriceInterval("1d");
         newtonProperties.setPriceDataType("04");
-        newtonProperties.setPriceObservations(800);
+        newtonProperties.setPriceObservations(1600);
         properties.setNewton(newtonProperties);
         return properties;
     }

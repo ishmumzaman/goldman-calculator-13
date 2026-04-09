@@ -1,0 +1,53 @@
+@import "tailwindcss";
+
+/* ── Design tokens from .pen file ── */
+:root {
+  --bg-page: #0A0A0B;
+  --bg-sidebar: #141417;
+  --bg-card: #141417;
+  --bg-elevated: #1A1A1D;
+  --bg-recessed: #111113;
+  --bg-surface: #1F1F23;
+  --bg-border: #2A2A2E;
+
+  --border-default: #2A2A2E;
+  --border-subtle: #1F1F23;
+
+  --text-primary: #FFFFFF;
+  --text-secondary: #ADADB0;
+  --text-tertiary: #8B8B90;
+  --text-muted: #6B6B70;
+  --text-disabled: #4A4A4E;
+
+  --gs-gold: #C9A96E;
+  --gs-gold-tint: #C9A96E18;
+  --gs-blue: #6BAADC;
+  --gs-blue-tint: #6BAADC18;
+
+  --success: #22C55E;
+  --success-tint: #22C55E18;
+  --error: #EF4444;
+  --orange-primary: #FF5C00;
+  --orange-light: #FF8A4C;
+  --orange-tint: #FF5C0018;
+}
+
+@layer base {
+  html, body, #root {
+    height: 100%;
+    background-color: var(--bg-page);
+    color: var(--text-primary);
+  }
+
+  .font-inter {
+    font-family: "Inter", sans-serif;
+  }
+
+  .font-dm-mono {
+    font-family: "DM Mono", monospace;
+  }
+
+  .font-instrument {
+    font-family: "Instrument Serif", serif;
+  }
+}

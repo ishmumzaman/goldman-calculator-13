@@ -89,3 +89,4 @@ Invoke-RestMethod -Uri 'http://localhost:8080/api/v1/calculations/future-value?t
 - The frontend will connect to these endpoints later.
 - Newton Analytics is used for both beta and historical price data.
 - No API key is required for live future-value calculations with the current provider choice.
+- `expectedReturnRate` is derived from the configured benchmark index's trailing 5-year return, while beta is still retrieved for the selected mutual fund.
